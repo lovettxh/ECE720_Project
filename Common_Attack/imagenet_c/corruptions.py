@@ -212,9 +212,9 @@ def motion_blur(x, severity=1):
                      cv2.IMREAD_UNCHANGED)
 
     if x.shape != (224, 224):
-        return np.clip(x[..., [2, 1, 0]], 0, 255)  # BGR to RGB
+        return np.clip(x[..., [0, 1, 2]], 0, 255)  # BGR to RGB
     else:  # greyscale to RGB
-        return np.clip(np.array([x, x, x]).transpose((1, 2, 0)), 0, 255)
+        return np.clip(np.array([x, x, x]).transpose((0, 1, 2)), 0, 255)
 
 
 def zoom_blur(x, severity=1):
