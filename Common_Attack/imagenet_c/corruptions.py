@@ -234,8 +234,8 @@ def zoom_blur(x, severity=1):
 
 
 def fog(x, severity=1):
+    x = x.resize([224,224])
     c = [(1.5, 2), (2., 2), (2.5, 1.7), (2.5, 1.5), (3., 1.4)][severity - 1]
-
     x = np.array(x) / 255.
     max_val = x.max()
     x += c[0] * plasma_fractal(wibbledecay=c[1])[:224, :224][..., np.newaxis]
@@ -243,6 +243,8 @@ def fog(x, severity=1):
 
 
 def frost(x, severity=1):
+    h, w, _ = asarray(x).shape
+    x = x.resize([224, 224])
     c = [(1, 0.4),
          (0.8, 0.6),
          (0.7, 0.7),
@@ -264,6 +266,7 @@ def frost(x, severity=1):
 
 
 def snow(x, severity=1):
+    x = x.resize([224, 224])
     c = [(0.1, 0.3, 3, 0.5, 10, 4, 0.8),
          (0.2, 0.3, 2, 0.5, 12, 4, 0.7),
          (0.55, 0.3, 4, 0.9, 12, 8, 0.7),
