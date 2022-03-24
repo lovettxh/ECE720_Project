@@ -20,6 +20,7 @@ import warnings
 import os
 from pkg_resources import resource_filename
 import random
+import math
 
 warnings.simplefilter("ignore", UserWarning)
 
@@ -169,14 +170,15 @@ def gaussian_blur(x, severity=1):
 
 def glass_blur(x, severity=1):
     # sigma, max_delta, iterations
+    h, w, _ = asarray(x).shape
     c = [(0.7, 1, 2), (0.9, 2, 1), (1, 2, 3), (1.1, 3, 2), (1.5, 4, 2)][severity - 1]
 
     x = np.uint8(gaussian(np.array(x) / 255., sigma=c[0], multichannel=True) * 255)
 
     # locally shuffle pixels
     for i in range(c[2]):
-        for h in range(224 - c[1], c[1], -1):
-            for w in range(224 - c[1], c[1], -1):
+        for h in range(h - c[1], c[1], -1):
+            for w in range(w - c[1], c[1], -1):
                 dx, dy = np.random.randint(-c[1], c[1], size=(2,))
                 h_prime, w_prime = h + dy, w + dx
                 # swap
@@ -212,9 +214,9 @@ def motion_blur(x, severity=1):
                      cv2.IMREAD_UNCHANGED)
 
     if x.shape != (224, 224):
-        return np.clip(x[..., [0, 1, 2]], 0, 255)  # BGR to RGB
+        return np.clip(x[..., [2, 1, 0]], 0, 255)  # BGR to RGB
     else:  # greyscale to RGB
-        return np.clip(np.array([x, x, x]).transpose((0, 1, 2)), 0, 255)
+        return np.clip(np.array([x, x, x]).transpose((1, 2, 0)), 0, 255)
 
 
 def zoom_blur(x, severity=1):
@@ -234,17 +236,21 @@ def zoom_blur(x, severity=1):
 
 
 def fog(x, severity=1):
-    x = x.resize([224,224])
+    h, w, _ = asarray(x).shape
     c = [(1.5, 2), (2., 2), (2.5, 1.7), (2.5, 1.5), (3., 1.4)][severity - 1]
     x = np.array(x) / 255.
     max_val = x.max()
-    x += c[0] * plasma_fractal(wibbledecay=c[1])[:224, :224][..., np.newaxis]
+    mapSize = 256
+    if h >= 256:
+        mapSize =int(math.log2(h))+1
+        mapSize = 2**mapSize
+    x += c[0] * plasma_fractal(mapsize=mapSize, wibbledecay=c[1])[:h, :w][..., np.newaxis]
+    image = np.clip(x * max_val / (max_val + c[0]), 0, 1) * 255
     return np.clip(x * max_val / (max_val + c[0]), 0, 1) * 255
 
 
 def frost(x, severity=1):
     h, w, _ = asarray(x).shape
-    x = x.resize([224, 224])
     c = [(1, 0.4),
          (0.8, 0.6),
          (0.7, 0.7),
@@ -258,21 +264,21 @@ def frost(x, severity=1):
                 resource_filename(__name__, 'frost/frost5.jpg'),
                 resource_filename(__name__, 'frost/frost6.jpg')][idx]
     frost = cv2.imread(filename)
+    frost = cv2.resize(frost,(h+10,w+10))
     # randomly crop and convert to rgb
-    x_start, y_start = np.random.randint(0, frost.shape[0] - 224), np.random.randint(0, frost.shape[1] - 224)
-    frost = frost[x_start:x_start + 224, y_start:y_start + 224][..., [2, 1, 0]]
+    x_start, y_start = np.random.randint(0, frost.shape[0] - h), np.random.randint(0, frost.shape[1] - h)
+    frost = frost[x_start:x_start + h, y_start:y_start + h][..., [2, 1, 0]]
 
     return np.clip(c[0] * np.array(x) + c[1] * frost, 0, 255)
 
 
 def snow(x, severity=1):
-    x = x.resize([224, 224])
     c = [(0.1, 0.3, 3, 0.5, 10, 4, 0.8),
          (0.2, 0.3, 2, 0.5, 12, 4, 0.7),
          (0.55, 0.3, 4, 0.9, 12, 8, 0.7),
          (0.55, 0.3, 4.5, 0.85, 12, 8, 0.65),
          (0.55, 0.3, 2.5, 0.85, 12, 12, 0.55)][severity - 1]
-
+    h, w, _ = asarray(x).shape
     x = np.array(x, dtype=np.float32) / 255.
     snow_layer = np.random.normal(size=x.shape[:2], loc=c[0], scale=c[1])  # [:2] for monochrome
 
@@ -290,7 +296,7 @@ def snow(x, severity=1):
                               cv2.IMREAD_UNCHANGED) / 255.
     snow_layer = snow_layer[..., np.newaxis]
 
-    x = c[6] * x + (1 - c[6]) * np.maximum(x, cv2.cvtColor(x, cv2.COLOR_RGB2GRAY).reshape(224, 224, 1) * 1.5 + 0.5)
+    x = c[6] * x + (1 - c[6]) * np.maximum(x, cv2.cvtColor(x, cv2.COLOR_RGB2GRAY).reshape(h, w, 1) * 1.5 + 0.5)
     return np.clip(x + snow_layer + np.rot90(snow_layer, k=2), 0, 1) * 255
 
 
@@ -388,20 +394,22 @@ def jpeg_compression(x, severity=1):
 
 def pixelate(x, severity=1):
     c = [0.6, 0.5, 0.4, 0.3, 0.25][severity - 1]
-
+    h, w, _ = asarray(x).shape
     x = x.resize((int(224 * c), int(224 * c)), PILImage.BOX)
-    x = x.resize((224, 224), PILImage.BOX)
+    x = x.resize((h, w), PILImage.BOX)
 
     return x
 
 
 # mod of https://gist.github.com/erniejunior/601cdf56d2b424757de5
 def elastic_transform(image, severity=1):
-    c = [(244 * 2, 244 * 0.7, 244 * 0.1),   # 244 should have been 224, but ultimately nothing is incorrect
-         (244 * 2, 244 * 0.08, 244 * 0.2),
-         (244 * 0.05, 244 * 0.01, 244 * 0.02),
-         (244 * 0.07, 244 * 0.01, 244 * 0.02),
-         (244 * 0.12, 244 * 0.01, 244 * 0.02)][severity - 1]
+    h, w, _ = asarray(image).shape
+    image = image.resize([224,224])
+    c = [(224 * 2, 224 * 0.7, 224 * 0.1),   # 244 should have been 224, but ultimately nothing is incorrect
+         (224 * 2, 224 * 0.08, 224 * 0.2),
+         (224 * 0.05, 224 * 0.01, 224 * 0.02),
+         (224 * 0.07, 224 * 0.01, 224 * 0.02),
+         (224 * 0.12, 224 * 0.01, 224 * 0.02)][severity - 1]
 
     image = np.array(image, dtype=np.float32) / 255.
     shape = image.shape
@@ -425,7 +433,9 @@ def elastic_transform(image, severity=1):
 
     x, y, z = np.meshgrid(np.arange(shape[1]), np.arange(shape[0]), np.arange(shape[2]))
     indices = np.reshape(y + dy, (-1, 1)), np.reshape(x + dx, (-1, 1)), np.reshape(z, (-1, 1))
-    return np.clip(map_coordinates(image, indices, order=1, mode='reflect').reshape(shape), 0, 1) * 255
+    image = np.clip(map_coordinates(image, indices, order=1, mode='reflect').reshape(shape), 0, 1) * 255
+    image = cv2.resize(image, (h, w))
+    return image
 
 
 def occlusion(image, severity=1):
