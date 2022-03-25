@@ -131,4 +131,10 @@ class APGD_attack():
             if idx.numel() != 0:
                 x_ = x[idx].clone()
                 y_ = y[idx].clone()
-            
+                res_curr = self.n(x_, y_)
+                best_curr, acc_curr, loss_curr, adv_curr = res_curr
+                idx_curr = (acc_curr == 0).nonzero().squeeze()
+                acc[idx[idx_curr]] = 0
+                x_adv[idx[idx_curr]] = adv_curr[idx_curr].clone()
+        return x_adv
+
