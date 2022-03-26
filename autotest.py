@@ -1,19 +1,19 @@
 from re import X
 import torch
 import numpy as np
-from .apgd_attack import APGD_attack
+from apgd_attack import APGD_attack
 class autotest():
-    def __init__(self, model, mode, device):
+    def __init__(self, model, mode, device, eps):
         self.model = model
         self.mode = mode
         self.device = device
-    
+        self.eps = eps
     def run_test(self, x, y, batch_size = 250):
         
-        apgd = APGD_attack(self.model, self.device, 100, 0.3)
+        apgd = APGD_attack(self.model, self.device, 10, self.eps)
         robust_flags = torch.zeros(x.shape[0], dtype=torch.bool, device=self.device)
         y_adv = torch.empty_like(y)
-        batch_num = x.shape[0] / batch_size
+        batch_num = int(np.ceil(x.shape[0] / batch_size))
         for idx in range(batch_num):
             start_idx = batch_size * idx
             end_idx = min( (idx + 1) * batch_size, x.shape[0])

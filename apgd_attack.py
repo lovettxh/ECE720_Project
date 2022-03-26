@@ -13,7 +13,7 @@ class APGD_attack():
         self.dims = len(list(x.shape[1:]))
         self.iter_step2 = max(int(0.22 * self.iter_step),1)
         self.iter_decr = max(int(0.03 * self.iter_step), 1)
-        self.iter_min = max(int(0.06 * self.n_iter), 1)
+        self.iter_min = max(int(0.06 * self.iter_step), 1)
 
 
     def normalize(self, x):
@@ -25,10 +25,10 @@ class APGD_attack():
         for counter5 in range(k):
           t += (x[j - counter5] > x[j - counter5 - 1]).float()
 
+        return (t <= k * k3 * torch.ones_like(t)).float()
+    
+    
     def apgd_attack(self,x,y):
-
-
-
         loss_steps = torch.zeros([self.iter_step, x.shape[0]]).to(self.device)
         # t = 2 * torch.rand(x.shape).to(self.device).detach() - 1
         # x_adv = x + self.eps * torch.ones_like(x
@@ -46,7 +46,8 @@ class APGD_attack():
         with torch.enable_grad():
             logits = self.model(x_adv)
             loss = criterion(logits, y)
-        grad = torch.autograd.grad(loss, [x_adv])[0].detach()
+            loss_sum = loss.sum()
+        grad = torch.autograd.grad(loss_sum, [x_adv])[0].detach()
         acc = logits.detach().max(1)[1] == y
         grad_best = grad.clone()
         loss_best = loss.detach().clone()
@@ -55,7 +56,7 @@ class APGD_attack():
         x_adv_old = x_adv.clone()
         count = 0
         iter_s = self.iter_step2 
-        loss_best_save = loss_best.clone()
+        loss_best_save = loss_best.detach().clone()
         reduced_save = torch.ones_like(loss_best)           # ???
 
         for i in range(self.iter_step):
@@ -67,9 +68,9 @@ class APGD_attack():
                 a = 0.75 if i > 0 else 1.0
 
                 x_adv_ = x_adv + step_size * torch.sign(grad)
-                x_adv_ = torch.min(torch.max(x_adv_, x - self.eps), x + self.eps)
+                x_adv_ = torch.min(torch.max(x_adv_, x - self.epsilon), x + self.epsilon)
                 x_adv_ = torch.clamp(x_adv_, 0.0, 1.0)
-                x_adv_ = torch.min(torch.max(x_adv + (x_adv_ - x_adv) * a + x_diff * (1 - a), x - self.eps), x + self.eps)
+                x_adv_ = torch.min(torch.max(x_adv + (x_adv_ - x_adv) * a + x_diff * (1 - a), x - self.epsilon), x + self.epsilon)
                 x_adv = torch.clamp(x_adv_, 0.0, 1.0)
             
             x_adv.requires_grad_()
@@ -77,7 +78,8 @@ class APGD_attack():
             with torch.enable_grad():
                 logits = self.model(x_adv)
                 loss = criterion(logits, y)
-            grad = torch.autograd.grad(loss, [x_adv])[0].detach()
+                loss_sum = loss.sum()
+            grad = torch.autograd.grad(loss_sum, [x_adv])[0].detach()
 
             pred = logits.detach().max(1)[1] == y
             acc = torch.min(acc, pred)
@@ -95,8 +97,8 @@ class APGD_attack():
                 loss_best[idx] = loss_[idx]
                 count += 1
 
-                if count == self.iter_s:
-                    oscillation = self.check_oscillation(loss_steps, i, self.iter_s, loss_best, k3=self.thr_decr)
+                if count == iter_s:
+                    oscillation = self.check_oscillation(loss_steps, i, self.iter_step2, loss_best, k3=0.75)
                     reduce_no_impr = (1. - reduced_save) * (loss_best_save >= loss_best).float()
                     oscillation = torch.max(oscillation, reduce_no_impr)
                     reduced_save = oscillation.clone()
@@ -104,7 +106,7 @@ class APGD_attack():
 
                     if oscillation.sum() > 0:
                         osc_idx = (oscillation > 0).nonzero().squeeze()
-                        step_size[osc_idx] /= 2
+                        step_size[osc_idx] /= 2.0
                         x_adv[osc_idx] = x_best[osc_idx].clone()
                         grad[osc_idx] = grad_best[osc_idx].clone()
 
@@ -115,14 +117,11 @@ class APGD_attack():
 
     def eval(self, x, y):
         self.setup(x)
-        x = x.detach().clone().float().to(self.device)
+        x = x.detach().clone()
         pred = self.model(x).max(1)[1]
-        y = y.detach().clone().float().to(self.device)
+        y = y.detach().clone()
         x_adv = x.detach().clone()
         acc = pred == y
-
-        torch.random.manual_seed(self.seed)
-        torch.cuda.random.manual_seed(self.seed)
 
         for i in range(self.restarts):
             idx = acc.nonzero().squeeze()
@@ -131,7 +130,7 @@ class APGD_attack():
             if idx.numel() != 0:
                 x_ = x[idx].clone()
                 y_ = y[idx].clone()
-                res_curr = self.n(x_, y_)
+                res_curr = self.apgd_attack(x_, y_)
                 best_curr, acc_curr, loss_curr, adv_curr = res_curr
                 idx_curr = (acc_curr == 0).nonzero().squeeze()
                 acc[idx[idx_curr]] = 0
