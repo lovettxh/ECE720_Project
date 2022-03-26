@@ -1,4 +1,4 @@
-from imagenet_c import corrupt
+from .imagenet_c import corrupt
 import torchvision.transforms as transforms
 from PIL import Image
 import torch
@@ -53,22 +53,26 @@ class LoadData(Dataset):
         return len(self.imgs_info)
 
 
-if __name__ == "__main__":
-    creat_dataset(rootdata)
-    dataset = LoadData("data.txt")
-    data_loader = torch.utils.data.DataLoader(dataset = dataset, shuffle = True)
-    i = 0
-    for image, label in data_loader:
-        image = image.squeeze(0)
-        image = transforms.ToPILImage()(image)
-        image = asarray(image)
-        image = corrupt(image,severity=1,corruption_number=21)
-        cv2.imwrite(str(i)+"1.jpg",image)
-        i+=1
+# if __name__ == "__main__":
+#     creat_dataset(rootdata)
+#     dataset = LoadData("data.txt")
+#     data_loader = torch.utils.data.DataLoader(dataset = dataset, shuffle = True)
+#     i = 0
+#     for image, label in data_loader:
+#         image = image.squeeze(0)
+#         image = transforms.ToPILImage()(image)
+#         image = asarray(image)
+#         image = corrupt(image,severity=1,corruption_number=21)
+#         cv2.imwrite(str(i)+"1.jpg",image)
+#         i+=1
 
 class Common_attack():
     def __init__(self, severity):
         self.severity = severity
 
     def eval(self, image, corruption_number):
-        return corrupt(image,severity=self.severity,corruption_number=corruption_number)
+        image_set = []
+        for i in range(image.shape[0]):
+            temp = corrupt(image[i],severity=self.severity,corruption_number=corruption_number)
+            image_set.append(temp)
+        return np.array(image_set)

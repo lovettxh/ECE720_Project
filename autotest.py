@@ -1,9 +1,9 @@
 from re import X
-from imagenet_c import corrupt
 import torch
 import numpy as np
-from apgd_attack import APGD_attack
-from common_attack import Common_attack
+from .common_attack import Common_attack
+from .apgd_attack import APGD_attack
+
 class autotest():
     def __init__(self, model, mode, device, eps):
         self.model = model
@@ -13,7 +13,7 @@ class autotest():
     def run_test(self, x, y, batch_size = 250):
         
         apgd = APGD_attack(self.model, self.device, 10, self.eps)
-        c_a = Common_attack(2, [0,1,2,3,4])
+        c_a = Common_attack(1)
         robust_flags = torch.zeros(x.shape[0], dtype=torch.bool, device=self.device)
         y_adv = torch.empty_like(y)
         batch_num = int(np.ceil(x.shape[0] / batch_size))
@@ -49,7 +49,7 @@ class autotest():
             y_ = y[batch_datapoint_idcs].clone().to(self.device)
             if len(x_.shape) == 3:
                 x_.unsqueeze_(dim=0)
-            corrupt_image = c_a.eval(x_, 1)
+            corrupt_image = torch.tensor(c_a.eval(x_.cpu().detach().numpy(), 9)).to(self.device)
             output = self.model(corrupt_image).max(dim=1)[1]
             false_batch = ~y_.eq(output).to(robust_flags.device)
             non_robust_lin_idcs = batch_datapoint_idcs[false_batch]
@@ -57,6 +57,8 @@ class autotest():
             num_non_robust_batch = torch.sum(false_batch)
             print('{} - {}/{} - {} out of {} successfully perturbed'.format('common', idx + 1, batch_num, num_non_robust_batch, x_.shape[0]))
         num_robust = torch.sum(robust_flags).item()
+        robust_accuracy = torch.sum(robust_flags).item() / x.shape[0]
+        print(('robust accuracy after {}: {:.2%} '.format('common', robust_accuracy)))
         if num_robust == 0:
             return
         batch_num = int(np.ceil(num_robust / batch_size))

@@ -30,12 +30,21 @@ def corrupt(x, severity=2, corruption_name=None, corruption_number=-1):
     an integer in [0, 18]; useful for easy looping; 15, 16, 17, 18 are validation corruption numbers
     :return: the image x corrupted by a corruption function at the given severity; same shape as input
     """
+    float_input = 0
+    c_h_w_input = 0
+
+    if len(x) <= 3:
+        x = np.transpose(x,(1,2,0))
+        c_h_w_input = 1
+    else:
+        x = x
+
+
+
     if len(x[0,0]) == 1:
         x_rgb = np.concatenate((x, x, x), axis=-1)
     else:
         x_rgb = x
-
-    float_input = 0
     if "uint8" in str(np.dtype(x_rgb[0,0,0])):
         x_rgb = x_rgb
     elif "float32" in str(np.dtype(x_rgb[0,0,0])):
@@ -57,10 +66,15 @@ def corrupt(x, severity=2, corruption_name=None, corruption_number=-1):
         x_rgb = np.uint8(x_corrupted)
 
     if len(x[0,0]) == 1:
-        output = rgb2gray(x_rgb)
-        output =output[:, :, np.newaxis]
+        x = rgb2gray(x_rgb)
+        x =x[:, :, np.newaxis]
     else:
-        output = x_rgb
+        x = x_rgb
 
+    if c_h_w_input == 1:
+        x = np.transpose(x,(2,0,1))
+    else:
+        x = x
 
+    output = x
     return output
