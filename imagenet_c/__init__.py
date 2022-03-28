@@ -61,10 +61,11 @@ def corrupt(x, severity=2, corruption_name=None, corruption_number=-1):
         raise ValueError("Either corruption_name or corruption_number must be passed")
 
     if float_input == 1:
-        x_rgb = np.float32(x_corrupted / 255.0)
+        x_rgb = np.float32(x_corrupted) / 255.0
     else:
         x_rgb = np.uint8(x_corrupted)
-
+    if len(x_rgb.shape) == 2:
+        print(x)
     if len(x[0,0]) == 1:
         x = rgb2gray(x_rgb)
         x =x[:, :, np.newaxis]
@@ -72,6 +73,7 @@ def corrupt(x, severity=2, corruption_name=None, corruption_number=-1):
         x = x_rgb
 
     if c_h_w_input == 1:
+        
         x = np.transpose(x,(2,0,1))
     else:
         x = x

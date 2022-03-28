@@ -96,8 +96,15 @@ class APGD_attack():
 
         return (t <= k * k3 * torch.ones_like(t)).float()
     
+    def dlr_loss(self, x, y):
+        x_sorted, ind_sorted = x.sort(dim=1)
+        ind = (ind_sorted[:, -1] == y).float()
+        u = torch.arange(x.shape[0])
+
+        return -(x[u, y] - x_sorted[:, -2] * ind - x_sorted[:, -1] * (
+            1. - ind)) / (x_sorted[:, -1] - x_sorted[:, -3] + 1e-12)
     
-    def apgd_attack(self,x,y, norm):
+    def apgd_attack(self,x,y, norm, loss):
         loss_steps = torch.zeros([self.iter_step, x.shape[0]]).to(self.device)
 
         # x_adv = x.detach() + 0.001 * torch.randn(x.shape).cuda().detach()
@@ -120,7 +127,10 @@ class APGD_attack():
         x_best_adv = x_adv.clone()
         
         # loss ce
-        criterion = nn.CrossEntropyLoss(reduction='none')
+        if loss == 'ce':
+            criterion = nn.CrossEntropyLoss(reduction='none')
+        elif loss == 'dlr':
+            criterion = self.dlr_loss
         x_adv.requires_grad_()
 
         # eot_iter numbers of iteration
@@ -235,7 +245,7 @@ class APGD_attack():
                     count = 0
         return (x_best, acc, loss_best, x_best_adv)
 
-    def eval(self, x, y, norm):
+    def eval(self, x, y, norm, loss):
         self.setup(x)
         x = x.detach().clone()
         pred = self.model(x).max(1)[1]
@@ -250,7 +260,7 @@ class APGD_attack():
             if idx.numel() != 0:
                 x_ = x[idx].clone()
                 y_ = y[idx].clone()
-                res_curr = self.apgd_attack(x_, y_, norm)
+                res_curr = self.apgd_attack(x_, y_, norm, loss)
                 best_curr, acc_curr, loss_curr, adv_curr = res_curr
                 idx_curr = (acc_curr == 0).nonzero().squeeze()
                 acc[idx[idx_curr]] = 0
