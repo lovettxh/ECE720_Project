@@ -64,8 +64,6 @@ def corrupt(x, severity=2, corruption_name=None, corruption_number=-1):
         x_rgb = np.float32(x_corrupted) / 255.0
     else:
         x_rgb = np.uint8(x_corrupted)
-    if len(x_rgb.shape) == 2:
-        print(x)
     if len(x[0,0]) == 1:
         x = rgb2gray(x_rgb)
         x =x[:, :, np.newaxis]

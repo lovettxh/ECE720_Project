@@ -211,7 +211,7 @@ def motion_blur(x, severity=1):
     x.motion_blur(radius=c[0], sigma=c[1], angle=np.random.uniform(-45, 45))
 
     x = cv2.imdecode(np.fromstring(x.make_blob(), np.uint8),
-                     cv2.IMREAD_UNCHANGED)
+                     cv2.IMREAD_COLOR)
 
     if x.shape != (224, 224):
         return np.clip(x[..., [2, 1, 0]], 0, 255)  # BGR to RGB
