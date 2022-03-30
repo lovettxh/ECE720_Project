@@ -15,6 +15,13 @@ corruption_dict = {corr_func.__name__: corr_func for corr_func in corruption_tup
 
 def rgb2gray(rgb):
     return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
+'''
+0.'gaussian_noise', 1.'shot_noise', 2.'impulse_noise', 3.'defocus_blur',
+4.'glass_blur', 5.'motion_blur', 6.'zoom_blur', 7.'snow', 8.'frost', 9.'fog',
+10.'brightness', 11.'contrast', 12.'elastic_transform', 13.'pixelate', 14.'jpeg_compression',
+15.'speckle_noise', 16.'gaussian_blur', 17.'spatter', 18.'saturate';
+'''
+
 
 def corrupt(x, severity=2, corruption_name=None, corruption_number=-1):
     """

@@ -53,16 +53,13 @@ def pgd_blackbox(target_model, source_model, x, y, epsilon, step_num, step_size)
     print('error pgd whitebox:', err)
     return err
 
-def eval_adv_test_whitebox(model, device, test_loader):
+def eval_adv_test_whitebox(model, device, test_loader, epsilon, num_steps, step_size):
     """
     evaluate model by white-box attack
     """
     model.eval()
     robust_err_total = 0
     natural_err_total = 0
-    epsilon = 0.03
-    num_steps = 20
-    step_size = 0.003
     for data, target in test_loader:
         data, target = data.to(device), target.to(device)
         # pgd attack
@@ -70,5 +67,6 @@ def eval_adv_test_whitebox(model, device, test_loader):
         err_natural, err_robust = _pgd_whitebox(model, X, y, epsilon, num_steps, step_size)
         robust_err_total += err_robust
         natural_err_total += err_natural
+    return robust_err_total
     print('natural_err_total: ', natural_err_total)
     print('robust_err_total: ', robust_err_total)
