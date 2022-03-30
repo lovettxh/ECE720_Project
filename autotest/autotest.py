@@ -224,11 +224,14 @@ class autotest():
         print('robust accuracy : {:.2%} '.format(robust_accuracy))
         return robust_accuracy
 
-    def run_test(self, testloader, x, y, mode, epsilon = 0.003 , batch_size = 200):
+    def run_test(self, testloader, mode, epsilon = 0.003 , batch_size = 200):
         com_num1 = [0,4,8,14,16]
         com_num2 = [1,5,9,10,15]
         adv_num = [0,1,2,3,4]
-        #com_num = com_num[::-1]
+        l = [x_ for (x_, y_) in testloader]
+        x = torch.cat(l, 0).to(self.device)
+        l = [y_ for (x_, y_) in testloader]
+        y = torch.cat(l, 0).to(self.device)
         if mode == 'natural':
             self.run_normal_mode(x, y, batch_size, com_num1,com_num2, epsilon)
         elif mode == 'adv':
