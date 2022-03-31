@@ -9,5 +9,5 @@ setup(
         author='Hao Xuan, Yinsheng He', 
         author_email='hxuan@ualberta.ca, yinsheng@ualberta.ca',
         url='https://github.com/lovettxh/ECE720_Project', 
-        packages=['autotest'], 
+        packages=['imagenet_c'], 
 )
