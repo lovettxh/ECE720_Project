@@ -1,1 +1,1 @@
-recursive-include autotest/imagenet_c
+recursive-include autotest/imagenet_c *
