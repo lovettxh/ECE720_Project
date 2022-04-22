@@ -1,4 +1,4 @@
-from .imagenet_c import corrupt
+from __init__ import corrupt
 import torchvision.transforms as transforms
 from PIL import Image
 import torch
